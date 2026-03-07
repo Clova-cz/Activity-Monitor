@@ -2,16 +2,28 @@
   import { createEventDispatcher } from 'svelte';
 
   export let player = null; // null = add mode, object = edit mode
+  export let groups = []; // available groups to assign to
 
   const dispatch = createEventDispatcher();
 
   const STATUS_OPTIONS = ['Online', 'In Game', 'Offline'];
+  const ROLE_OPTIONS = ['Owner', 'Co-Owner', 'Admin', 'Moderator', 'Member', 'Guest'];
 
   let username = player?.username ?? '';
   let displayName = player?.displayName ?? '';
   let status = player?.status ?? 'Online';
   let game = player?.game ?? '';
   let notes = player?.notes ?? '';
+  // Group membership — use empty string as the "no group" sentinel so the
+  // <select> binding never has to deal with null vs undefined mismatches.
+  // If the player was in a group that has since been deleted, fall back to ''
+  // (no group). This is a defensive check; App.svelte already nulls groupId on
+  // cascade delete, so the two paths stay in sync.
+  let groupId = (player?.groupId != null && groups.some((g) => g.id === player.groupId))
+    ? String(player.groupId)
+    : '';
+  let role = player?.role || 'Member';
+  let proof = player?.proof ?? '';
 
   let errors = {};
 
@@ -38,6 +50,9 @@
       status,
       game: status === 'In Game' ? game.trim() : '',
       notes: notes.trim(),
+      groupId: groupId !== '' ? Number(groupId) : null,
+      role: groupId !== '' ? role : '',
+      proof: groupId !== '' ? proof.trim() : '',
     });
   }
 
@@ -134,6 +149,52 @@
         ></textarea>
       </div>
 
+      <!-- ── Group Membership ── -->
+      <div class="section-divider"><span>Group Membership</span></div>
+
+      <!-- Group -->
+      <div class="field">
+        <label for="player-group">Group <span class="optional">(optional)</span></label>
+        <div class="select-wrapper">
+          <select id="player-group" bind:value={groupId}>
+            <option value="">— No Group —</option>
+            {#each groups as g (g.id)}
+              <option value={String(g.id)}>{g.name}</option>
+            {/each}
+          </select>
+        </div>
+        {#if groups.length === 0}
+          <span class="field-hint">No groups exist yet — create one from the main screen.</span>
+        {/if}
+      </div>
+
+      {#if groupId !== ''}
+        <!-- Role -->
+        <div class="field">
+          <label for="player-role">Role <span class="required">*</span></label>
+          <div class="select-wrapper">
+            <select id="player-role" bind:value={role}>
+              {#each ROLE_OPTIONS as r}
+                <option value={r}>{r}</option>
+              {/each}
+            </select>
+          </div>
+        </div>
+
+        <!-- Proof -->
+        <div class="field">
+          <label for="player-proof">Proof of Membership <span class="optional">(optional)</span></label>
+          <input
+            id="player-proof"
+            type="text"
+            placeholder="URL or description (e.g. Roblox group link)"
+            bind:value={proof}
+            maxlength="300"
+          />
+          <span class="field-hint">Paste a link or describe how membership was verified.</span>
+        </div>
+      {/if}
+
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" on:click={() => dispatch('cancel')}>
           Cancel
@@ -164,6 +225,9 @@
     border-radius: 12px;
     width: 100%;
     max-width: 460px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
     box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
     overflow: hidden;
   }
@@ -205,6 +269,7 @@
     display: flex;
     flex-direction: column;
     gap: 1rem;
+    overflow-y: auto;
   }
 
   .field {
@@ -325,5 +390,35 @@
 
   .btn-primary:hover {
     opacity: 0.9;
+  }
+
+  .section-divider {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    margin: 0.125rem 0;
+  }
+
+  .section-divider::before,
+  .section-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: #334155;
+  }
+
+  .section-divider span {
+    font-size: 0.75rem;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .field-hint {
+    font-size: 0.8rem;
+    color: #475569;
+    font-style: italic;
   }
 </style>

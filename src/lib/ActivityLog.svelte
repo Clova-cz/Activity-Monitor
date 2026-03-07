@@ -7,6 +7,10 @@
     status_change: '🔄',
     game_change: '🎮',
     edited: '✏️',
+    group_added: '👥',
+    group_edited: '✏️',
+    group_removed: '🗑️',
+    role_change: '🏷️',
   };
 
   function formatTimestamp(iso) {

@@ -2,6 +2,7 @@
   import { createEventDispatcher } from 'svelte';
 
   export let player;
+  export let groupName = null; // name of the group this player belongs to (optional)
 
   const dispatch = createEventDispatcher();
 
@@ -17,6 +18,15 @@
     'Offline': '⚫',
   };
 
+  const ROLE_COLORS = {
+    'Owner':    '#f59e0b',
+    'Co-Owner': '#f97316',
+    'Admin':    '#ef4444',
+    'Moderator':'#8b5cf6',
+    'Member':   '#3b82f6',
+    'Guest':    '#6b7280',
+  };
+
   function formatTime(iso) {
     const d = new Date(iso);
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) +
@@ -30,6 +40,13 @@
       .slice(0, 2)
       .map((w) => w[0]?.toUpperCase() ?? '')
       .join('');
+  }
+
+  function isUrl(str) {
+    try {
+      const url = new URL(str);
+      return url.protocol === 'http:' || url.protocol === 'https:';
+    } catch { return false; }
   }
 </script>
 
@@ -63,6 +80,28 @@
       <span class="game-name">🎯 {player.game}</span>
     {/if}
   </div>
+
+  {#if player.role && groupName}
+    <div class="group-row">
+      <span
+        class="role-badge"
+        style="background: {ROLE_COLORS[player.role] ?? '#6b7280'}22; color: {ROLE_COLORS[player.role] ?? '#6b7280'}; border-color: {ROLE_COLORS[player.role] ?? '#6b7280'}55;"
+      >
+        {player.role}
+      </span>
+      <span class="group-tag">👥 {groupName}</span>
+    </div>
+  {/if}
+
+  {#if player.proof}
+    <div class="proof-row">
+      {#if isUrl(player.proof)}
+        <a href={player.proof} target="_blank" rel="noopener noreferrer" class="proof-link">🔗 Proof</a>
+      {:else}
+        <span class="proof-text">📋 {player.proof}</span>
+      {/if}
+    </div>
+  {/if}
 
   {#if player.notes}
     <p class="notes">{player.notes}</p>
@@ -207,5 +246,50 @@
   .last-seen {
     font-size: 0.75rem;
     color: #475569;
+  }
+
+  /* ── Group / Role / Proof ── */
+  .group-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .role-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    border: 1px solid;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .group-tag {
+    font-size: 0.8125rem;
+    color: #94a3b8;
+  }
+
+  .proof-row {
+    margin-top: -0.125rem;
+  }
+
+  .proof-link {
+    font-size: 0.8125rem;
+    color: #60a5fa;
+    text-decoration: none;
+  }
+
+  .proof-link:hover {
+    text-decoration: underline;
+  }
+
+  .proof-text {
+    font-size: 0.8125rem;
+    color: #94a3b8;
+    font-style: italic;
   }
 </style>
