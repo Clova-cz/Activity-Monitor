@@ -1,43 +1,41 @@
-# Svelte + Vite
+# 🎮 Roblox Activity Monitor
 
-This template should help get you started developing with Svelte in Vite.
+> ⚠️ **NOT FOR PRODUCTION USE** — This application was AI-generated and is intended for demonstration purposes only. Do not use it in a production environment. All data is stored only in your browser session and is not persisted or secured.
 
-## Recommended IDE Setup
+A simple, manual-entry Roblox activity tracker built with [Svelte](https://svelte.dev/) + [Vite](https://vite.dev/).
 
-[VS Code](https://code.visualstudio.com/) + [Svelte](https://marketplace.visualstudio.com/items?itemName=svelte.svelte-vscode).
+**Live demo:** <https://clova-cz.github.io/Activity-Monitor/>
 
-## Need an official Svelte framework?
+---
 
-Check out [SvelteKit](https://github.com/sveltejs/kit#readme), which is also powered by Vite. Deploy anywhere with its serverless-first approach and adapt to various platforms, with out of the box support for TypeScript, SCSS, and Less, and easily-added support for mdsvex, GraphQL, PostCSS, Tailwind CSS, and more.
+## Features
 
-## Technical considerations
+- **Add / edit / remove players** — manually record any Roblox username, display name, current status, and the game they're playing.
+- **Status tracking** — Online 🟢, In Game 🎮, Offline ⚫
+- **Activity log** — every add, edit, remove, and status change is timestamped and shown in a scrollable log.
+- **Search & filter** — filter the player grid by status or search by name / game.
+- **Stats bar** — at-a-glance counts for each status.
 
-**Why use this over SvelteKit?**
+## Getting started locally
 
-- It brings its own routing solution which might not be preferable for some users.
-- It is first and foremost a framework that just happens to use Vite under the hood, not a Vite app.
-
-This template contains as little as possible to get started with Vite + Svelte, while taking into account the developer experience with regards to HMR and intellisense. It demonstrates capabilities on par with the other `create-vite` templates and is a good starting point for beginners dipping their toes into a Vite + Svelte project.
-
-Should you later need the extended capabilities and extensibility provided by SvelteKit, the template has been structured similarly to SvelteKit so that it is easy to migrate.
-
-**Why include `.vscode/extensions.json`?**
-
-Other templates indirectly recommend extensions via the README, but this file allows VS Code to prompt the user to install the recommended extension upon opening the project.
-
-**Why enable `checkJs` in the JS template?**
-
-It is likely that most cases of changing variable types in runtime are likely to be accidental, rather than deliberate. This provides advanced typechecking out of the box. Should you like to take advantage of the dynamically-typed nature of JavaScript, it is trivial to change the configuration.
-
-**Why is HMR not preserving my local component state?**
-
-HMR state preservation comes with a number of gotchas! It has been disabled by default in both `svelte-hmr` and `@sveltejs/vite-plugin-svelte` due to its often surprising behavior. You can read the details [here](https://github.com/sveltejs/svelte-hmr/tree/master/packages/svelte-hmr#preservation-of-local-state).
-
-If you have state that's important to retain within a component, consider creating an external store which would not be replaced by HMR.
-
-```js
-// store.js
-// An extremely simple external store
-import { writable } from 'svelte/store'
-export default writable(0)
+```bash
+npm install
+npm run dev
 ```
+
+Then open <http://localhost:5173/Activity-Monitor/> in your browser.
+
+## Building for production
+
+```bash
+npm run build   # outputs to dist/
+npm run preview # preview the production build locally
+```
+
+## Deployment
+
+The app is deployed automatically to GitHub Pages via the [deploy workflow](.github/workflows/deploy.yml) on every push to the `slop` branch.
+
+## Dependencies
+
+Dependabot is configured (see [`.github/dependabot.yml`](.github/dependabot.yml)) to open weekly PRs for outdated npm packages and GitHub Actions.

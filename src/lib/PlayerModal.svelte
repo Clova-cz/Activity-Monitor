@@ -52,6 +52,7 @@
   role="dialog"
   aria-modal="true"
   aria-labelledby="modal-title"
+  tabindex="-1"
   on:keydown={handleKeydown}
 >
   <div class="modal">
@@ -250,11 +251,9 @@
     border-color: #ef4444;
   }
 
-  input.error,
-  textarea.error {
+  input.error {
     border-color: #f87171;
   }
-
   .error-msg {
     font-size: 0.8125rem;
     color: #f87171;
