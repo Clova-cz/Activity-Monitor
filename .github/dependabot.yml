@@ -1,0 +1,30 @@
+version: 2
+updates:
+  # Keep npm dependencies up to date
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Europe/Prague
+    open-pull-requests-limit: 10
+    groups:
+      svelte:
+        patterns:
+          - "svelte"
+          - "@sveltejs/*"
+      vite:
+        patterns:
+          - "vite"
+          - "@vitejs/*"
+
+  # Keep GitHub Actions up to date
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Europe/Prague
+    open-pull-requests-limit: 10
