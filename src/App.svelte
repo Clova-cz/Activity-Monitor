@@ -2,6 +2,7 @@
   import WarningBanner from './lib/WarningBanner.svelte';
   import PlayerCard from './lib/PlayerCard.svelte';
   import PlayerModal from './lib/PlayerModal.svelte';
+  import GroupModal from './lib/GroupModal.svelte';
   import ActivityLog from './lib/ActivityLog.svelte';
 
   // ─── State ───────────────────────────────────────────────────────────────────
@@ -15,19 +16,27 @@
   let nextId = 1;
   let nextLogId = 1;
 
+  // Groups
+  let groups = [];
+  let nextGroupId = 1;
+  let showGroupModal = false;
+  let editingGroup = null; // null = create mode, group object = edit mode
+  let filterGroupId = null; // null = show all groups
+
   const STATUS_OPTIONS = ['All', 'Online', 'In Game', 'Offline'];
 
   // ─── Derived ─────────────────────────────────────────────────────────────────
 
   $: filteredPlayers = players.filter((p) => {
     const matchStatus = filterStatus === 'All' || p.status === filterStatus;
+    const matchGroup = filterGroupId === null || p.groupId === filterGroupId;
     const q = searchQuery.toLowerCase().trim();
     const matchSearch =
       !q ||
       p.username.toLowerCase().includes(q) ||
       p.displayName.toLowerCase().includes(q) ||
       (p.game && p.game.toLowerCase().includes(q));
-    return matchStatus && matchSearch;
+    return matchStatus && matchGroup && matchSearch;
   });
 
   $: counts = {
@@ -36,6 +45,11 @@
     inGame: players.filter((p) => p.status === 'In Game').length,
     offline: players.filter((p) => p.status === 'Offline').length,
   };
+
+  // Pre-compute member counts per group to avoid repeated O(n) scans in the template.
+  $: memberCounts = Object.fromEntries(
+    groups.map((g) => [g.id, players.filter((p) => p.groupId === g.id).length])
+  );
 
   // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -46,7 +60,7 @@
     ].slice(0, 200); // keep last 200 entries
   }
 
-  // ─── Modal handlers ──────────────────────────────────────────────────────────
+  // ─── Player modal handlers ────────────────────────────────────────────────────
 
   function openAddModal() {
     editingPlayer = null;
@@ -85,6 +99,12 @@
           'game_change',
           `${data.displayName || data.username} switched game: ${prev.game || '?'} → ${data.game}`
         );
+      } else if (data.role && prev.role !== data.role) {
+        const gName = groups.find((g) => g.id === data.groupId)?.name ?? 'a group';
+        addLog(
+          'role_change',
+          `${data.displayName || data.username}'s role in ${gName} changed to ${data.role}.`
+        );
       } else {
         addLog('edited', `${data.displayName || data.username}'s profile was updated.`);
       }
@@ -109,6 +129,60 @@
     players = players.filter((p) => p.id !== id);
     addLog('removed', `${player.displayName || player.username} was removed from the monitor.`);
   }
+
+  // ─── Group handlers ───────────────────────────────────────────────────────────
+
+  function openAddGroupModal() {
+    editingGroup = null;
+    showGroupModal = true;
+  }
+
+  function openEditGroupModal(group) {
+    editingGroup = group;
+    showGroupModal = true;
+  }
+
+  function closeGroupModal() {
+    showGroupModal = false;
+    editingGroup = null;
+  }
+
+  function handleGroupSave(event) {
+    const data = event.detail;
+    if (editingGroup) {
+      groups = groups.map((g) =>
+        g.id === editingGroup.id ? { ...g, ...data } : g
+      );
+      addLog('group_edited', `Group "${data.name}" was updated.`);
+    } else {
+      const newGroup = { id: nextGroupId++, ...data, createdAt: new Date().toISOString() };
+      groups = [...groups, newGroup];
+      addLog('group_added', `Group "${data.name}" was created.`);
+    }
+    closeGroupModal();
+  }
+
+  function removeGroup(id) {
+    const group = groups.find((g) => g.id === id);
+    if (!group) return;
+    const memberCount = memberCounts[id] ?? 0;
+    const msg = memberCount > 0
+      ? `Remove group "${group.name}"? ${memberCount} player(s) will be unassigned.`
+      : `Remove group "${group.name}"?`;
+    if (!confirm(msg)) return;
+    groups = groups.filter((g) => g.id !== id);
+    // Unassign players that belonged to this group
+    players = players.map((p) =>
+      p.groupId === id ? { ...p, groupId: null, role: '', proof: '' } : p
+    );
+    // Clear the group filter if it pointed at the deleted group
+    if (filterGroupId === id) filterGroupId = null;
+    addLog('group_removed', `Group "${group.name}" was removed.`);
+  }
+
+  function toggleGroupFilter(id) {
+    filterGroupId = filterGroupId === id ? null : id;
+  }
 </script>
 
 <WarningBanner />
@@ -120,7 +194,7 @@
       <div class="logo" aria-hidden="true">🎮</div>
       <div>
         <h1>Roblox Activity Monitor</h1>
-        <p class="subtitle">Manually track your friends' Roblox activity</p>
+        <p class="subtitle">Track your group members' Roblox activity</p>
       </div>
     </div>
     <button class="btn-add" on:click={openAddModal}>
@@ -146,6 +220,50 @@
       <span class="stat-value">{counts.offline}</span>
       <span class="stat-label">Offline</span>
     </div>
+    <div class="stat groups-stat">
+      <span class="stat-value">{groups.length}</span>
+      <span class="stat-label">Groups</span>
+    </div>
+  </div>
+
+  <!-- Groups bar -->
+  <div class="groups-bar">
+    <div class="groups-chips">
+      <button
+        class="group-chip"
+        class:active={filterGroupId === null}
+        on:click={() => (filterGroupId = null)}
+      >
+        All Players
+      </button>
+      {#each groups as group (group.id)}
+        <div class="group-chip-wrapper">
+          <button
+            class="group-chip"
+            class:active={filterGroupId === group.id}
+            on:click={() => toggleGroupFilter(group.id)}
+          >
+            <span class="chip-name">{group.name}</span>
+            <span class="chip-count">{memberCounts[group.id] ?? 0}</span>
+          </button>
+          <div class="chip-actions">
+            <button
+              class="chip-action"
+              title="Edit group"
+              on:click|stopPropagation={() => openEditGroupModal(group)}
+              aria-label="Edit group {group.name}"
+            >✏️</button>
+            <button
+              class="chip-action chip-action-danger"
+              title="Delete group"
+              on:click|stopPropagation={() => removeGroup(group.id)}
+              aria-label="Delete group {group.name}"
+            >🗑️</button>
+          </div>
+        </div>
+      {/each}
+    </div>
+    <button class="btn-new-group" on:click={openAddGroupModal}>+ New Group</button>
   </div>
 
   <!-- Filters -->
@@ -178,6 +296,7 @@
       {#each filteredPlayers as player (player.id)}
         <PlayerCard
           {player}
+          groupName={groups.find((g) => g.id === player.groupId)?.name ?? null}
           on:edit={(e) => openEditModal(e.detail)}
           on:remove={(e) => removePlayer(e.detail)}
         />
@@ -202,12 +321,22 @@
   <ActivityLog entries={activityLog} />
 </main>
 
-<!-- Modal -->
+<!-- Player Modal -->
 {#if showModal}
   <PlayerModal
     player={editingPlayer}
+    {groups}
     on:save={handleSave}
     on:cancel={closeModal}
+  />
+{/if}
+
+<!-- Group Modal -->
+{#if showGroupModal}
+  <GroupModal
+    group={editingGroup}
+    on:save={handleGroupSave}
+    on:cancel={closeGroupModal}
   />
 {/if}
 
@@ -327,6 +456,123 @@
   .stat.online .stat-value { color: #22c55e; }
   .stat.in-game .stat-value { color: #3b82f6; }
   .stat.offline .stat-value { color: #6b7280; }
+  .stat.groups-stat .stat-value { color: #a78bfa; }
+
+  /* ── Groups bar ── */
+  .groups-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .groups-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    flex: 1;
+    align-items: center;
+  }
+
+  .group-chip-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .group-chip {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 999px;
+    color: #94a3b8;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 500;
+    padding: 0.3rem 0.875rem;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    font-family: inherit;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .group-chip:hover {
+    color: #f1f5f9;
+    background: #334155;
+  }
+
+  .group-chip.active {
+    background: linear-gradient(135deg, #7c3aed, #4c1d95);
+    border-color: #7c3aed;
+    color: #fff;
+    font-weight: 700;
+  }
+
+  .chip-name {
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .chip-count {
+    background: rgba(255,255,255,0.15);
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.05rem 0.4rem;
+    line-height: 1.4;
+  }
+
+  .group-chip:not(.active) .chip-count {
+    background: #334155;
+    color: #94a3b8;
+  }
+
+  .chip-actions {
+    display: flex;
+    gap: 0.15rem;
+  }
+
+  .chip-action {
+    background: transparent;
+    border: 1px solid #334155;
+    border-radius: 6px;
+    cursor: pointer;
+    padding: 0.2rem 0.35rem;
+    font-size: 0.8rem;
+    line-height: 1;
+    transition: background 0.15s, border-color 0.15s;
+  }
+
+  .chip-action:hover {
+    background: #334155;
+  }
+
+  .chip-action-danger:hover {
+    background: #450a0a;
+    border-color: #7f1d1d;
+  }
+
+  .btn-new-group {
+    background: #1e293b;
+    border: 1px dashed #475569;
+    border-radius: 999px;
+    color: #64748b;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 600;
+    padding: 0.3rem 0.875rem;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    font-family: inherit;
+    white-space: nowrap;
+  }
+
+  .btn-new-group:hover {
+    background: #334155;
+    color: #f1f5f9;
+    border-color: #64748b;
+  }
 
   /* ── Filters ── */
   .filters {
